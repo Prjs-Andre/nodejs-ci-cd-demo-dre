@@ -1,0 +1,57 @@
+name: Tests and Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Run tests
+        run: npm ci && npm test
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: github.ref_name == 'main'
+    env:
+      HEROKU_ACCOUNT_EMAIL: zignd@live.com
+      HEROKU_APP_NAME: zignd-app-test-1
+    needs:
+      - tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Setup Heroku CLI
+        run: |
+          curl https://cli-assets.heroku.com/install.sh | sh
+          echo "machine api.heroku.com
+            login andre.trab05@gmail.com
+            password ${{ secrets.HEROKU_API_KEY }}
+          machine git.heroku.com
+            login $HEROKU_ACCOUNT_EMAIL
+            password ${{ secrets.HEROKU_API_KEY }}" > ~/.netrc
+          heroku container:login
+
+      - name: Deploy to Heroku
+        run: |
+          heroku container:push api -a nodejs-ci-cd-demo-dre
+          heroku container:release api -a nodejs-ci-cd-demo-dre
